@@ -149,9 +149,43 @@ int main(int argc, char **argv)
         }
 
         if (FD_ISSET(udp_fd, &rfds)) {
-            // Not expected in this direction; drain and ignore.
-            uint8_t discard[2048];
-            recvfrom(udp_fd, discard, sizeof(discard), 0, NULL, NULL);
+            ssize_t r = recvfrom(udp_fd, outbuf, sizeof(outbuf), 0, NULL, NULL);
+            if (r < 0) {
+                perror("recvfrom");
+                continue;
+            }
+            if (r < HEADER_LEN) {
+                fprintf(stderr, "Short UDP packet (%zd), discarding\n", r);
+                continue;
+            }
+
+            struct custom_hdr *hdr = (struct custom_hdr *)outbuf;
+            if (ntohl(hdr->magic) != MAGIC) {
+                fprintf(stderr, "Bad magic 0x%08x, discarding\n", ntohl(hdr->magic));
+                continue;
+            }
+
+            uint16_t payload_len = ntohs(hdr->payload_len);
+            if (payload_len > (size_t)r - HEADER_LEN) {
+                fprintf(stderr, "Payload len mismatch (%u > %zd), discarding\n",
+                        payload_len, (size_t)r - HEADER_LEN);
+                continue;
+            }
+
+            ssize_t w = write(tun_fd, outbuf + HEADER_LEN, payload_len);
+            if (w < 0) {
+                perror("write tun");
+            } else {
+                char src_str[INET_ADDRSTRLEN], dst_str[INET_ADDRSTRLEN];
+                struct in_addr s, d;
+                s.s_addr = hdr->src_tun_addr;
+                d.s_addr = hdr->dst_tun_addr;
+                printf("Decapsulated seq=%u %s -> %s (%u bytes inner)\n",
+                       ntohl(hdr->seq_num),
+                       inet_ntop(AF_INET, &s, src_str, sizeof(src_str)),
+                       inet_ntop(AF_INET, &d, dst_str, sizeof(dst_str)),
+                       payload_len);
+            }
         }
     }
 

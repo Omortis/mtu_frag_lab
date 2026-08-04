@@ -2,7 +2,7 @@
 
 ## Overview
 
-Two Ubuntu VMs connected over a bridged LAN. VM-A encapsulates raw IP packets from a TUN interface with a 40-byte custom header and forwards them as UDP datagrams to VM-B. VM-B decapsulates and writes the original packet to its own TUN interface. A tiny HTTP server on VM-B's TUN side demonstrates that TCP flows survive fragmentation.
+Two Ubuntu VMs connected over a bridged LAN. VM-A encapsulates raw IP packets from a TUN interface with a 40-byte custom header and forwards them as UDP datagrams to VM-B. VM-B decapsulates and writes the original packet to its own TUN interface, then encapsulates return traffic and sends it back to VM-A. A tiny HTTP server on VM-B's TUN side demonstrates that TCP flows survive fragmentation.
 
 ## Network Topology
 
@@ -14,7 +14,8 @@ Two Ubuntu VMs connected over a bridged LAN. VM-A encapsulates raw IP packets fr
     [VM-A: encapsulator]              [VM-B: decapsulator]
     tun0: 10.200.0.1/24               tun0: 10.200.0.2/24
     eth0: DHCP (bridged)              eth0: DHCP (bridged)
-    UDP src: ephemeral                UDP dst: 9999
+    UDP dst: <VM-B eth0 IP>:9999      (outer transport)
+    Inner: 10.200.0.x  (read from tun0)
 ```
 
 ## Phase 1: VM Provisioning & Verification
@@ -77,9 +78,15 @@ while (1) {
         hdr = build_header(n, buf);
         memcpy(packet, &hdr, 40);
         memcpy(packet + 40, buf, n);
-        sendto(udp_fd, packet, 40 + n, ...);
+        sendto(udp_fd, packet, 40 + n, dst_addr);
     }
-    // No UDP path in encapsulator for this exercise
+    if (udp_fd readable) {
+        n = recvfrom(udp_fd, buf, ...);
+        hdr = (struct custom_hdr *)buf;
+        if (validate(hdr)) {
+            write(tun_fd, buf + 40, hdr->payload_len);
+        }
+    }
 }
 ```
 
@@ -91,8 +98,8 @@ while (1) {
 1. Open TUN device
 2. Bind UDP socket to 0.0.0.0:9999
 3. `select()` on TUN fd and UDP fd
-4. When UDP readable: validate magic, strip 40 bytes, write remainder to TUN
-5. When TUN readable: read packet (for future expansion — e.g., return traffic)
+4. When UDP readable: validate magic, strip 40 bytes, write remainder to TUN. Remember the peer's source address on the first valid packet.
+5. When TUN readable: read the packet, prepend a 40-byte header, and send UDP back to the remembered peer address.
 
 ### Decapsulator Loop
 ```c
@@ -105,6 +112,14 @@ while (1) {
         if (ntohl(hdr->magic) != MAGIC) continue;
         payload_len = ntohs(hdr->payload_len);
         write(tun_fd, buf + 40, payload_len);
+        if (!have_peer) { remember_peer(src_addr); }
+    }
+    if (tun_fd readable && have_peer) {
+        n = read(tun_fd, buf, MTU);
+        hdr = build_header(n, buf);
+        memcpy(packet, &hdr, 40);
+        memcpy(packet + 40, buf, n);
+        sendto(udp_fd, packet, 40 + n, peer_addr);
     }
 }
 ```
@@ -260,12 +275,16 @@ More Fragments flag = 0 on fragment 2.
 
 ```
 sdwan-lab/
-├── README.md                 # This plan + build/run instructions
+├── README.md                 # Build/run instructions + troubleshooting
+├── mtu_frag_lab.md           # This implementation plan
 ├── Makefile
+├── .gitignore
 ├── common.h                  # Shared header struct
-├── encapsulator.c            # VM-A
-├── decapsulator.c            # VM-B
+├── encapsulator.c            # VM-A (bidirectional)
+├── decapsulator.c            # VM-B (bidirectional)
 ├── http_server.c             # VM-B (TUN side)
+├── vma-setup.sh              # VM-A TUN interface bootstrap
+├── vmb-setup.sh              # VM-B TUN interface bootstrap
 ├── twingate_lab.lua          # Wireshark dissector
 └── testbench/
     ├── go.mod
@@ -278,8 +297,12 @@ sdwan-lab/
 
 ---
 
-## Next Steps
+## Validation Checklist
 
-1. **You**: Create a new repo and seed it with this plan
-2. **We**: Implement in order — C code first, then Go testbench, then Lua
-3. **Validation**: Run end-to-end, capture pcaps, verify in Wireshark
+- [x] VM provisioning and TUN interface setup
+- [x] Bidirectional C tunnel (encapsulator + decapsulator)
+- [x] HTTP server on VM-B TUN interface
+- [x] Go testbench (ping, udpgen, mtu-probe, http)
+- [ ] End-to-end capture and Wireshark analysis
+- [ ] Lua dissector installation and verification
+- [ ] MTU fragmentation observation

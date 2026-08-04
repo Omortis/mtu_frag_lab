@@ -14,7 +14,8 @@ Two Ubuntu VMs connected over a bridged LAN. VM-A encapsulates raw IP packets fr
     [VM-A: encapsulator]              [VM-B: decapsulator]
     tun0: 10.200.0.1/24               tun0: 10.200.0.2/24
     eth0: DHCP (bridged)              eth0: DHCP (bridged)
-    UDP src: ephemeral                UDP dst: 9999
+     UDP dst: <VM-B eth0 IP>:9999      (outer transport)
+     Inner: 10.200.0.x  (read from tun0)
 ```
 
 ## Phase 1: VM Provisioning & Verification
@@ -78,9 +79,11 @@ This produces three binaries:
 
 **VM-A** (must be run with `sudo` for TUN device access):
 ```bash
-sudo ./encapsulator [REMOTE_IP] [REMOTE_PORT]
-# Default: sudo ./encapsulator 10.200.0.2 9999
+sudo ./encapsulator [VM-B_ETH0_IP] [REMOTE_PORT]
+# Example: sudo ./encapsulator 192.168.64.5 9999
 ```
+
+> **Important:** The `[VM-B_ETH0_IP]` argument is VM-B's **real bridged LAN address** (e.g., `192.168.64.5`), **not** `10.200.0.2`. The inner packet destination (`10.200.0.2`) is read from `tun0`; the outer UDP envelope is addressed to VM-B's `eth0` so it can actually leave the machine.
 
 **VM-B** (must be run with `sudo` for TUN device access):
 ```bash
@@ -93,6 +96,30 @@ sudo ./decapsulator [LISTEN_PORT]
 sudo ./http_server [BIND_ADDR] [BIND_PORT]
 # Default: sudo ./http_server 10.200.0.2 8080
 ```
+
+### Troubleshooting
+
+**Stale processes competing for TUN device:**
+If you see packets in `tcpdump` but the tunnel binary never logs them, you may have a stale process still holding `/dev/net/tun`. Check with:
+```bash
+sudo fuser /dev/net/tun
+```
+If it shows more than one PID, kill all stale instances:
+```bash
+sudo killall -9 decapsulator
+sudo killall -9 encapsulator
+```
+
+**TUN interface shows `state DOWN` or bind fails with `Cannot assign requested address`:**
+Re-run the setup script for that VM (`vma-setup.sh` or `vmb-setup.sh`). The TUN interface is not persistent across reboots.
+
+**UDP packets leave VM-A but never arrive at VM-B:**
+Check the firewall on both VMs:
+```bash
+sudo ufw status
+sudo ufw allow 9999/udp
+```
+Also verify you started the encapsulator with VM-B's **real bridged LAN IP** (e.g., `192.168.64.5`), not `10.200.0.2`.
 
 ## Testbench
 

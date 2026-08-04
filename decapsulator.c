@@ -19,6 +19,37 @@
 #define MTU 1500
 #define MAX_PACKET (HEADER_LEN + MTU)
 
+static uint32_t seq_counter = 0;
+
+static uint64_t now_ns(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
+}
+
+static void build_header(struct custom_hdr *hdr, size_t payload_len,
+                         const uint8_t *packet)
+{
+    hdr->magic       = htonl(MAGIC);
+    hdr->version     = 0x01;
+    hdr->flags       = 0x00;
+    hdr->payload_len = htons((uint16_t)payload_len);
+    hdr->session_id  = htonl(0x00000001);
+    hdr->seq_num     = htonl(++seq_counter);
+    hdr->timestamp   = htobe64(now_ns());
+
+    if (payload_len >= 20) {
+        hdr->src_tun_addr = ((struct in_addr *)(packet + 12))->s_addr;
+        hdr->dst_tun_addr = ((struct in_addr *)(packet + 16))->s_addr;
+    } else {
+        hdr->src_tun_addr = 0;
+        hdr->dst_tun_addr = 0;
+    }
+
+    memset(hdr->reserved, 0, sizeof(hdr->reserved));
+}
+
 static int tun_alloc(const char *dev)
 {
     struct ifreq ifr;
@@ -80,6 +111,11 @@ int main(int argc, char **argv)
     printf("Decapsulator: TUN=%s  UDP:%d\n", tun_dev, listen_port);
 
     uint8_t buf[MAX_PACKET];
+    uint8_t outbuf[MAX_PACKET];
+
+    struct sockaddr_in peer_addr;
+    socklen_t peer_len = sizeof(peer_addr);
+    int have_peer = 0;
 
     while (1) {
         fd_set rfds;
@@ -122,6 +158,17 @@ int main(int argc, char **argv)
                 continue;
             }
 
+            // Remember peer for return traffic
+            if (!have_peer) {
+                memcpy(&peer_addr, &src_addr, addrlen);
+                peer_len = addrlen;
+                have_peer = 1;
+                char peer_str[INET_ADDRSTRLEN];
+                printf("Peer registered: %s:%d\n",
+                       inet_ntop(AF_INET, &peer_addr.sin_addr, peer_str, sizeof(peer_str)),
+                       ntohs(peer_addr.sin_port));
+            }
+
             ssize_t w = write(tun_fd, buf + HEADER_LEN, payload_len);
             if (w < 0) {
                 perror("write tun");
@@ -139,10 +186,34 @@ int main(int argc, char **argv)
         }
 
         if (FD_ISSET(tun_fd, &rfds)) {
-            // Future expansion: return traffic could be encapsulated here.
-            uint8_t discard[MTU];
-            if (read(tun_fd, discard, sizeof(discard)) < 0) {
-                /* ignore errors on discard read */
+            if (!have_peer) {
+                // No peer yet; just drain tun0
+                uint8_t discard[MTU];
+                if (read(tun_fd, discard, sizeof(discard)) < 0) {
+                    /* ignore errors on discard read */
+                }
+                continue;
+            }
+
+            ssize_t r = read(tun_fd, buf, sizeof(buf));
+            if (r < 0) {
+                perror("read tun");
+                continue;
+            }
+
+            struct custom_hdr hdr;
+            build_header(&hdr, (size_t)r, buf);
+
+            memcpy(outbuf, &hdr, HEADER_LEN);
+            memcpy(outbuf + HEADER_LEN, buf, (size_t)r);
+
+            ssize_t sent = sendto(udp_fd, outbuf, HEADER_LEN + (size_t)r, 0,
+                                  (struct sockaddr *)&peer_addr, peer_len);
+            if (sent < 0) {
+                perror("sendto");
+            } else {
+                printf("Encapsulated %zd bytes -> peer (seq=%u)\n",
+                       r, seq_counter);
             }
         }
     }
