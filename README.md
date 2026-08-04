@@ -2,7 +2,7 @@
 
 ## Overview
 
-Two Ubuntu VMs connected over a bridged LAN. VM-A encapsulates raw IP packets from a TUN interface with a 40-byte custom header and forwards them as UDP datagrams to VM-B. VM-B decapsulates and writes the original packet to its own TUN interface. A tiny HTTP server on VM-B's TUN side demonstrates that TCP flows survive fragmentation.
+Two Ubuntu VMs connected over a bridged LAN. VM-A encapsulates raw IP packets from a TUN interface with a 40-byte custom header and forwards them as UDP datagrams to VM-B. VM-B decapsulates and writes the original packet to its own TUN interface, then encapsulates return traffic and sends it back to VM-A. A tiny HTTP server on VM-B's TUN side demonstrates that TCP flows survive fragmentation.
 
 ## Network Topology
 
@@ -152,11 +152,11 @@ Options:
 Generate UDP datagrams of configurable size:
 
 ```bash
-./testbench udpgen -target 10.200.0.2:9000 -size 1400 -count 10
+./testbench udpgen -target 10.200.0.2:9999 -size 1400 -count 10
 ```
 
 Options:
-- `-target`: Target host:port (default: `10.200.0.2:9000`)
+- `-target`: Target host:port (default: `10.200.0.2:9999`)
 - `-size`: Payload size in bytes (default: `1400`)
 - `-count`: Number of datagrams (default: `10`)
 - `-interval`: Interval between sends (default: `100ms`)
@@ -167,11 +167,11 @@ Options:
 Binary search for path MTU via UDP with the Don't Fragment bit set:
 
 ```bash
-./testbench mtu-probe -target 10.200.0.2:9000
+./testbench mtu-probe -target 10.200.0.2:9999
 ```
 
 Options:
-- `-target`: Target host:port (default: `10.200.0.2:9000`)
+- `-target`: Target host:port (default: `10.200.0.2:9999`)
 - `-timeout`: Reply timeout (default: `2s`)
 
 #### HTTP Client
@@ -194,7 +194,7 @@ Options:
    ```
 3. Probe the MTU:
    ```bash
-   ./testbench mtu-probe -target 10.200.0.2:9000
+   ./testbench mtu-probe -target 10.200.0.2:9999
    ```
 4. Verify HTTP through the tunnel:
    ```bash
@@ -203,23 +203,26 @@ Options:
 
 ## Capture & Analysis
 
-### VM-A Capture
+### Manual Capture (Recommended)
 
+Open a terminal on **each VM** and run `tcpdump` in the shared project directory. This writes `.pcap` files that are immediately visible from the host if you're using a shared folder.
+
+**VM-A:**
 ```bash
-sudo tcpdump -i any -w vm_a.pcap 'udp port 9999 or icmp'
+sudo tcpdump -i any -w ./vm_a.pcap 'udp port 9999 or icmp'
 ```
 
-### VM-B Capture
-
+**VM-B:**
 ```bash
-sudo tcpdump -i any -w vm_b.pcap 'udp port 9999 or icmp or tcp port 8080'
+sudo tcpdump -i any -w ./vm_b.pcap 'udp port 9999 or icmp or tcp port 8080'
 ```
 
-### Transfer to Host
+While both captures are running, execute your tests from VM-A (e.g., `ping`, `udpgen`, `mtu-probe`, `http`). Then `Ctrl-C` each `tcpdump` to stop the capture.
 
+If the VMs are not using a shared folder, transfer the pcaps manually:
 ```bash
-scp vm_a.pcap user@host-mac:~/
-scp vm_b.pcap user@host-mac:~/
+scp vm-a:~/projects/mtu_frag_lab/vm_a.pcap .
+scp vm-b:~/projects/mtu_frag_lab/vm_b.pcap .
 ```
 
 ### Wireshark Analysis
