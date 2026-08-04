@@ -203,23 +203,26 @@ Options:
 
 ## Capture & Analysis
 
-### VM-A Capture
+### Manual Capture (Recommended)
 
+Open a terminal on **each VM** and run `tcpdump` in the shared project directory. This writes `.pcap` files that are immediately visible from the host if you're using a shared folder.
+
+**VM-A:**
 ```bash
-sudo tcpdump -i any -w vm_a.pcap 'udp port 9999 or icmp'
+sudo tcpdump -i any -w ./vm_a.pcap 'udp port 9999 or icmp'
 ```
 
-### VM-B Capture
-
+**VM-B:**
 ```bash
-sudo tcpdump -i any -w vm_b.pcap 'udp port 9999 or icmp or tcp port 8080'
+sudo tcpdump -i any -w ./vm_b.pcap 'udp port 9999 or icmp or tcp port 8080'
 ```
 
-### Transfer to Host
+While both captures are running, execute your tests from VM-A (e.g., `ping`, `udpgen`, `mtu-probe`, `http`). Then `Ctrl-C` each `tcpdump` to stop the capture.
 
+If the VMs are not using a shared folder, transfer the pcaps manually:
 ```bash
-scp vm_a.pcap user@host-mac:~/
-scp vm_b.pcap user@host-mac:~/
+scp vm-a:~/projects/mtu_frag_lab/vm_a.pcap .
+scp vm-b:~/projects/mtu_frag_lab/vm_b.pcap .
 ```
 
 ### Wireshark Analysis
