@@ -285,6 +285,7 @@ sdwan-lab/
 ├── http_server.c             # VM-B (TUN side)
 ├── vma-setup.sh              # VM-A TUN interface bootstrap
 ├── vmb-setup.sh              # VM-B TUN interface bootstrap
+├── capture.sh                # Capture helper script
 ├── twingate_lab.lua          # Wireshark dissector
 └── testbench/
     ├── go.mod
@@ -303,6 +304,6 @@ sdwan-lab/
 - [x] Bidirectional C tunnel (encapsulator + decapsulator)
 - [x] HTTP server on VM-B TUN interface
 - [x] Go testbench (ping, udpgen, mtu-probe, http)
-- [ ] End-to-end capture and Wireshark analysis
-- [ ] Lua dissector installation and verification
-- [ ] MTU fragmentation observation
+- [x] End-to-end capture and Wireshark analysis
+- [x] Lua dissector installation and verification
+- [ ] MTU fragmentation observation (requires large inner payload > 1460 bytes)

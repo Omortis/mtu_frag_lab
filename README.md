@@ -2,7 +2,7 @@
 
 ## Overview
 
-Two Ubuntu VMs connected over a bridged LAN. VM-A encapsulates raw IP packets from a TUN interface with a 40-byte custom header and forwards them as UDP datagrams to VM-B. VM-B decapsulates and writes the original packet to its own TUN interface. A tiny HTTP server on VM-B's TUN side demonstrates that TCP flows survive fragmentation.
+Two Ubuntu VMs connected over a bridged LAN. VM-A encapsulates raw IP packets from a TUN interface with a 40-byte custom header and forwards them as UDP datagrams to VM-B. VM-B decapsulates and writes the original packet to its own TUN interface, then encapsulates return traffic and sends it back to VM-A. A tiny HTTP server on VM-B's TUN side demonstrates that TCP flows survive fragmentation.
 
 ## Network Topology
 
@@ -152,11 +152,11 @@ Options:
 Generate UDP datagrams of configurable size:
 
 ```bash
-./testbench udpgen -target 10.200.0.2:9000 -size 1400 -count 10
+./testbench udpgen -target 10.200.0.2:9999 -size 1400 -count 10
 ```
 
 Options:
-- `-target`: Target host:port (default: `10.200.0.2:9000`)
+- `-target`: Target host:port (default: `10.200.0.2:9999`)
 - `-size`: Payload size in bytes (default: `1400`)
 - `-count`: Number of datagrams (default: `10`)
 - `-interval`: Interval between sends (default: `100ms`)
@@ -167,11 +167,11 @@ Options:
 Binary search for path MTU via UDP with the Don't Fragment bit set:
 
 ```bash
-./testbench mtu-probe -target 10.200.0.2:9000
+./testbench mtu-probe -target 10.200.0.2:9999
 ```
 
 Options:
-- `-target`: Target host:port (default: `10.200.0.2:9000`)
+- `-target`: Target host:port (default: `10.200.0.2:9999`)
 - `-timeout`: Reply timeout (default: `2s`)
 
 #### HTTP Client
@@ -194,7 +194,7 @@ Options:
    ```
 3. Probe the MTU:
    ```bash
-   ./testbench mtu-probe -target 10.200.0.2:9000
+   ./testbench mtu-probe -target 10.200.0.2:9999
    ```
 4. Verify HTTP through the tunnel:
    ```bash
