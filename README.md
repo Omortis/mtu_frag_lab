@@ -243,3 +243,35 @@ cp twingate_lab.lua ~/.config/wireshark/plugins/
 ```
 
 The dissector maps bytes 0–39 to named fields in the Wireshark packet detail pane.
+
+## WezTerm Layout
+
+A 6-pane WezTerm layout is provided for managing the lab from a single window.
+
+### Installation
+
+```bash
+cp mtu_lab_layout.lua ~/.config/wezterm/
+```
+
+### Integration
+
+Add to `~/.config/wezterm/wezterm.lua`:
+
+```lua
+local lab = require 'mtu_lab_layout'
+
+config.keys = {
+    -- ... your existing keys ...
+    { key = 'M', mods = 'CTRL|SHIFT', action = wezterm.action_callback(lab.apply) },
+}
+```
+
+### Layout
+
+| Column 1 (macOS) | Column 2 (VM-A) | Column 3 (VM-A) |
+|------------------|-----------------|-----------------|
+| Local shell      | `ssh 192.168.64.3` | `ssh 192.168.64.3` |
+| Local shell      | `ssh 192.168.64.5` | `ssh 192.168.64.5` |
+
+Press **Ctrl+Shift+M** in WezTerm to spawn the layout.

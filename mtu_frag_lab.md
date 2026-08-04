@@ -287,6 +287,7 @@ sdwan-lab/
 ├── vmb-setup.sh              # VM-B TUN interface bootstrap
 ├── capture.sh                # Capture helper script
 ├── twingate_lab.lua          # Wireshark dissector
+├── mtu_lab_layout.lua        # WezTerm 6-pane layout
 └── testbench/
     ├── go.mod
     ├── main.go
