@@ -1,4 +1,4 @@
-local twig_proto = Proto("TWIG", "Twingate Lab Custom Header")
+local twig_proto = Proto("TWIG", "Lab Custom Header")
 
 local f_magic        = ProtoField.uint32("twig.magic",        "Magic",        base.HEX)
 local f_version      = ProtoField.uint8 ("twig.version",      "Version",      base.DEC)
@@ -19,7 +19,7 @@ twig_proto.fields = {
 
 function twig_proto.dissector(buffer, pinfo, tree)
     if buffer:len() < 40 then return end
-    local subtree = tree:add(twig_proto, buffer(), "Twingate Lab Header")
+    local subtree = tree:add(twig_proto, buffer(), "Lab Header")
     subtree:add(f_magic,       buffer(0,4))
     subtree:add(f_version,     buffer(4,1))
     subtree:add(f_flags,       buffer(5,1))

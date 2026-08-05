@@ -233,13 +233,13 @@ scp vm-b:~/projects/mtu_frag_lab/vm_b.pcap .
 
 ## Wireshark Lua Dissector
 
-A custom dissector for the 40-byte TWIG header is available in `twingate_lab.lua`.
+A custom dissector for the 40-byte TWIG header is available in `twig_dissector.lua`.
 
 ### Installation (macOS)
 
 ```bash
 mkdir -p ~/.config/wireshark/plugins
-cp twingate_lab.lua ~/.config/wireshark/plugins/
+cp twig_dissector.lua ~/.config/wireshark/plugins/
 ```
 
 The dissector maps bytes 0–39 to named fields in the Wireshark packet detail pane.
