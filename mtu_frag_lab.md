@@ -13,7 +13,7 @@ Two Ubuntu VMs connected over a bridged LAN. VM-A encapsulates raw IP packets fr
           |                                     |
     [VM-A: encapsulator]              [VM-B: decapsulator]
     tun0: 10.200.0.1/24               tun0: 10.200.0.2/24
-    eth0: DHCP (bridged)              eth0: DHCP (bridged)
+    enp0s1: DHCP (bridged)            enp0s1: DHCP (bridged)
     UDP dst: <VM-B eth0 IP>:9999      (outer transport)
     Inner: 10.200.0.x  (read from tun0)
 ```
@@ -21,9 +21,9 @@ Two Ubuntu VMs connected over a bridged LAN. VM-A encapsulates raw IP packets fr
 ## Phase 1: VM Provisioning & Verification
 
 ### VM-A & VM-B Setup
-- UTM Ubuntu Server 22.04/24.04 VMs, bridged networking
+- UTM Ubuntu Server 26.04 VMs, bridged networking
 - Install build tools: `sudo apt update && sudo apt install build-essential tcpdump`
-- Verify mutual reachability: `ping` each other on `eth0`
+- Verify mutual reachability: `ping` each other on `enp0s1`
 
 ### TUN Interface Setup (both VMs)
 ```bash
