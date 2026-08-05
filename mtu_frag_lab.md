@@ -155,7 +155,7 @@ while (1) {
 - Verifies that ICMP replies return through the tunnel
 
 #### `udpgen.go`
-- Generates UDP datagrams of configurable size to `10.200.0.2:9000`
+- Generates UDP datagrams of configurable size to `10.200.0.2:9999`
 - Used to find the exact fragmentation threshold
 
 #### `mtu_probe.go`
@@ -173,18 +173,18 @@ while (1) {
 
 ### VM-A Capture
 ```bash
-sudo tcpdump -i any -w vm_a.pcap 'udp port 9999 or icmp'
+sudo tcpdump -i any -w ./vm_a.pcap 'udp port 9999 or icmp'
 ```
 
 ### VM-B Capture
 ```bash
-sudo tcpdump -i any -w vm_b.pcap 'udp port 9999 or icmp or tcp port 8080'
+sudo tcpdump -i any -w ./vm_b.pcap 'udp port 9999 or icmp or tcp port 8080'
 ```
 
-### Transfer to Host
+If the VMs are not using a shared folder, transfer the pcaps manually:
 ```bash
-scp vm_a.pcap user@host-mac:~/
-scp vm_b.pcap user@host-mac:~/
+scp vm-a:~/projects/mtu_frag_lab/vm_a.pcap .
+scp vm-b:~/projects/mtu_frag_lab/vm_b.pcap .
 ```
 
 ### Wireshark Analysis
@@ -253,7 +253,7 @@ Yes — hex values are visible either way. The dissector simply maps bytes 0–3
 
 ### Test Procedure
 1. Start encapsulator, decapsulator, HTTP server
-2. From VM-A, run: `./testbench -mtu-probe -target 10.200.0.2`
+2. From VM-A, run: `./testbench mtu-probe -target 10.200.0.2:9999`
 3. Observe in Wireshark:
    - Unfragmented packets up to a threshold
    - Beyond threshold: outer IP layer fragments into 2+ pieces
@@ -274,7 +274,7 @@ More Fragments flag = 0 on fragment 2.
 ## File Inventory (Final Repo Structure)
 
 ```
-sdwan-lab/
+mtu_frag_lab/
 ├── README.md                 # Build/run instructions + troubleshooting
 ├── mtu_frag_lab.md           # This implementation plan
 ├── Makefile
