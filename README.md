@@ -256,15 +256,16 @@ cp mtu_lab_layout.lua ~/.config/wezterm/
 
 ### Integration
 
-Add to `~/.config/wezterm/wezterm.lua`:
+Add to `~/.wezterm.lua`:
 
 ```lua
-local lab = require 'mtu_lab_layout'
+local lab_path = os.getenv("HOME") .. "/.config/wezterm/mtu_lab_layout.lua"
+local lab = dofile(lab_path)
 
-config.keys = {
-    -- ... your existing keys ...
-    { key = 'M', mods = 'CTRL|SHIFT', action = wezterm.action_callback(lab.apply) },
-}
+config.keys = config.keys or {}
+table.insert(config.keys, {
+    key = 'M', mods = 'CTRL|SHIFT', action = wezterm.action_callback(lab.apply),
+})
 ```
 
 ### Layout
