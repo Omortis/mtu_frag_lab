@@ -161,7 +161,6 @@ while (1) {
 #### `mtu_probe.go`
 - Binary search approach: send increasingly large UDP packets until fragmentation is observed (or replies stop)
 - Reports the maximum unfragmented payload size
-- This is the "MTU / fragmentation" angle from interview prep
 
 #### `http_client.go`
 - Sends `GET http://10.200.0.2:8080/` and prints response
